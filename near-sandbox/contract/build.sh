@@ -2,4 +2,4 @@
 
 echo ">> Building contract"
 
-near-sdk-js build src/map.ts build/map.wasm
+near-sdk-js build src/events.ts build/events.wasm
