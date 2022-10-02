@@ -491,6 +491,15 @@ function input() {
   env.input(0);
   return env.read_register(0);
 }
+function storageUsage() {
+  return env.storage_usage();
+}
+function promiseBatchCreate(accountId) {
+  return env.promise_batch_create(accountId);
+}
+function promiseBatchActionTransfer(promiseIndex, amount) {
+  env.promise_batch_action_transfer(promiseIndex, amount);
+}
 function storageWrite(key, value) {
   let exist = env.storage_write(key, value, EVICTED_REGISTER);
 
@@ -508,6 +517,9 @@ function storageRemove(key) {
   }
 
   return false;
+}
+function storageByteCost() {
+  return 10000000000000000000n;
 }
 
 function call({
@@ -1024,6 +1036,7 @@ function internalCreateEvent({
   hostName,
   tiersInformation
 }) {
+  let initialStorageUsage = storageUsage();
   let accountId = predecessorAccountId();
   let event = new Event({
     title,
@@ -1043,11 +1056,27 @@ function internalCreateEvent({
   contract.eventById.set(eventId, event);
   contract.numberOfEvents += 1;
   log(`Event Created: ${accountId} created ${title} event`);
+  let requiredStorageInBytes = storageUsage() - initialStorageUsage.valueOf();
+  refundDeposit(requiredStorageInBytes);
   return eventId;
+}
+function refundDeposit(storageUsed) {
+  let requiredCost = storageUsed * storageByteCost().valueOf();
+  let attachedDeposit$1 = attachedDeposit().valueOf();
+  assert(attachedDeposit$1 >= requiredCost, `Must attach ${requiredCost} yoctoNear to cover storage`);
+  let refund = attachedDeposit$1 - requiredCost;
+  log(`Refunded ${refund} yoctoNear`);
+
+  if (refund > 1) {
+    const promise = promiseBatchCreate(predecessorAccountId());
+    promiseBatchActionTransfer(promise, refund);
+  }
 }
 
 var _dec, _dec2, _dec3, _class, _class2;
-let Events = (_dec = NearBindgen({}), _dec2 = call({}), _dec3 = view({}), _dec(_class = (_class2 = class Events {
+let Events = (_dec = NearBindgen({}), _dec2 = call({
+  payableFunction: true
+}), _dec3 = view({}), _dec(_class = (_class2 = class Events {
   owner_id = "";
   numberOfEvents = 0;
   eventsPerOwner = new LookupMap("eventsPerOwner");

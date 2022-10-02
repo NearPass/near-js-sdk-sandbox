@@ -16,7 +16,7 @@ export class Events {
     eventMetadataById = new UnorderedMap("eventsMetadata");
     eventById = new LookupMap("eventById");
 
-    @call({})
+    @call({ payableFunction: true })
     createEvent({
         eventId,
         title,
