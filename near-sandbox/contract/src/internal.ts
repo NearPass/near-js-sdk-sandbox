@@ -6,6 +6,7 @@ export function internalCreateEvent({
     eventId,
     title,
     eventMetadataUrl,
+    eventStart,
     hostName,
     tiersInformation,
 }) {
@@ -14,7 +15,7 @@ export function internalCreateEvent({
     let accountId = near.predecessorAccountId();
     let event = new Event({
         title,
-        timestamp: near.blockTimestamp().toString(),
+        timestamp: eventStart,
         active: true,
         amountCollected: 0,
     });

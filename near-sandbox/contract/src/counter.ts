@@ -11,6 +11,7 @@ export class Counter {
     increase({ n = 1 }) {
         this.count += n;
         near.log(`Counter increased to ${this.count}`);
+        return this.count;
     }
 
     @call({})

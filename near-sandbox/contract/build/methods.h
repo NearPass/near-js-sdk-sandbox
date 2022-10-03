@@ -1,3 +1,2 @@
-DEFINE_NEAR_METHOD(Events)
-DEFINE_NEAR_METHOD(createEvent)
-DEFINE_NEAR_METHOD(getEvent)
+DEFINE_NEAR_METHOD(CrossCallCounter)
+DEFINE_NEAR_METHOD(crossCallIncrement)

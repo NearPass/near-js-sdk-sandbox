@@ -15,12 +15,12 @@ export class Host {
 export class Tier {
     price: number;
     thumbnail: string;
-    maxAllowed: number; // -1 for infinite
+    ticketsRemaining: number; // -1 for infinite
 
-    constructor({ price, thumbnail, maxAllowed }) {
+    constructor({ price, thumbnail, ticketsRemaining }) {
         this.price = price;
         this.thumbnail = thumbnail;
-        this.maxAllowed = maxAllowed;
+        this.ticketsRemaining = ticketsRemaining;
     }
 }
 
