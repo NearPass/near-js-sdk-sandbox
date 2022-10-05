@@ -28,6 +28,8 @@ export function internalCreateEvent({
         tiersInformation,
     });
 
+    near.log(eventMetadata.tiers);
+
     contract.eventsPerOwner.set(accountId, eventId);
     contract.eventMetadataById.set(eventId, eventMetadata);
     contract.eventById.set(eventId, event);

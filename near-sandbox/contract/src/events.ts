@@ -10,9 +10,27 @@ import {
     bytes,
 } from "near-sdk-js";
 import { internalCreateEvent } from "./internal";
-import { Event, EventId, EventMetadata } from "./metadata";
+import { Event, EventMetadata, Host, Tier } from "./metadata";
 
 const FIVE_TGAS = BigInt("50000000000000");
+
+class EventResult {
+    title: string;
+    timestamp: string;
+    eventId: string;
+    tiers: Tier[];
+    host: Host;
+    active: boolean;
+
+    constructor({ title, timestamp, eventId, tiers, host, active }) {
+        this.title = title;
+        this.timestamp = timestamp;
+        this.eventId = eventId;
+        this.tiers = tiers;
+        this.host = host;
+        this.active = active;
+    }
+}
 
 @NearBindgen({})
 export class Events {
@@ -45,7 +63,19 @@ export class Events {
 
     @view({})
     getEvent({ eventId }) {
-        return this.eventMetadataById.get(eventId);
+        let eventMetadata = this.eventMetadataById.get(
+            eventId
+        ) as EventMetadata;
+        let event = this.eventById.get(eventId) as Event;
+
+        return new EventResult({
+            title: eventMetadata.title,
+            timestamp: event.timestamp,
+            eventId,
+            host: eventMetadata.host,
+            tiers: eventMetadata.tiers,
+            active: event.active,
+        });
     }
 
     @call({ payableFunction: true })
@@ -94,8 +124,14 @@ export class Events {
     }
 
     // cancel event before it starts and refund to all ticket buyers, only organizer should be able to cancel.
-    // @call
-    // cancelEvent({ eventId });
+    @call({})
+    cancelEvent({ eventId }) {
+        let event = this.eventById.get(eventId) as Event;
+        assert(
+            near.blockTimestamp() < BigInt(event.timestamp.valueOf()),
+            "Event has already started"
+        );
+    }
 
     // let organizer withdraw when event ends.
     // @call

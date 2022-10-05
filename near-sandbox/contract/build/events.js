@@ -968,11 +968,11 @@ class Tier {
   constructor({
     price,
     thumbnail,
-    maxAllowed
+    ticketsRemaining
   }) {
     this.price = price;
     this.thumbnail = thumbnail;
-    this.maxAllowed = maxAllowed;
+    this.ticketsRemaining = ticketsRemaining;
   }
 
 }
@@ -1023,7 +1023,13 @@ class EventMetadata {
       name: hostName,
       accountId: hostAccountId
     });
-    this.tiers = new Array(new Tier(tiersInformation));
+    let tiers = new Array(tiersInformation.length);
+
+    for (let i = 0; i < tiers.length; i++) {
+      tiers[i] = new Tier(tiersInformation[i]);
+    }
+
+    this.tiers = tiers;
   }
 
 }
@@ -1033,6 +1039,7 @@ function internalCreateEvent({
   eventId,
   title,
   eventMetadataUrl,
+  eventStart,
   hostName,
   tiersInformation
 }) {
@@ -1040,7 +1047,7 @@ function internalCreateEvent({
   let accountId = predecessorAccountId();
   let event = new Event({
     title,
-    timestamp: blockTimestamp().toString(),
+    timestamp: eventStart,
     active: true,
     amountCollected: 0
   });
@@ -1051,6 +1058,7 @@ function internalCreateEvent({
     hostName,
     tiersInformation
   });
+  log(eventMetadata.tiers);
   contract.eventsPerOwner.set(accountId, eventId);
   contract.eventMetadataById.set(eventId, eventMetadata);
   contract.eventById.set(eventId, event);
@@ -1073,10 +1081,33 @@ function refundDeposit(storageUsed) {
   }
 }
 
-var _dec, _dec2, _dec3, _class, _class2;
+var _dec, _dec2, _dec3, _dec4, _dec5, _class, _class2;
+BigInt("50000000000000");
+
+class EventResult {
+  constructor({
+    title,
+    timestamp,
+    eventId,
+    tiers,
+    host,
+    active
+  }) {
+    this.title = title;
+    this.timestamp = timestamp;
+    this.eventId = eventId;
+    this.tiers = tiers;
+    this.host = host;
+    this.active = active;
+  }
+
+}
+
 let Events = (_dec = NearBindgen({}), _dec2 = call({
   payableFunction: true
-}), _dec3 = view({}), _dec(_class = (_class2 = class Events {
+}), _dec3 = view({}), _dec4 = call({
+  payableFunction: true
+}), _dec5 = call({}), _dec(_class = (_class2 = class Events {
   owner_id = "";
   numberOfEvents = 0;
   eventsPerOwner = new LookupMap("eventsPerOwner");
@@ -1087,6 +1118,7 @@ let Events = (_dec = NearBindgen({}), _dec2 = call({
     eventId,
     title,
     eventMetadataUrl,
+    eventStart,
     hostName,
     tiersInformation
   }) {
@@ -1096,6 +1128,7 @@ let Events = (_dec = NearBindgen({}), _dec2 = call({
       eventId,
       title,
       eventMetadataUrl,
+      eventStart,
       hostName,
       tiersInformation
     });
@@ -1104,18 +1137,102 @@ let Events = (_dec = NearBindgen({}), _dec2 = call({
   getEvent({
     eventId
   }) {
-    return this.eventMetadataById.get(eventId);
-  } // @call({ payableFunction: true })
-  // buyTicket({ eventId }) {}
-  // cancel event before it starts and refund to all ticket buyers, only organizer should be able to cancel.
-  // @call
-  // cancelEvent({ eventId });
-  // let organizer withdraw when event ends.
+    let eventMetadata = this.eventMetadataById.get(eventId);
+    let event = this.eventById.get(eventId);
+    return new EventResult({
+      title: eventMetadata.title,
+      timestamp: event.timestamp,
+      eventId,
+      host: eventMetadata.host,
+      tiers: eventMetadata.tiers,
+      active: event.active
+    });
+  }
+
+  buyTicket({
+    eventId,
+    tier = 0,
+    amount = 1
+  }) {
+    predecessorAccountId();
+    let eventMetadata = this.eventMetadataById.get(eventId);
+    let event = this.eventById.get(eventId);
+    let price = eventMetadata.tiers[tier].price;
+    assert(attachedDeposit() >= price, "Insufficient funds transferred");
+    assert(blockTimestamp() < BigInt(event.timestamp.valueOf()), "Event has already started");
+    assert(eventMetadata.tiers[tier].ticketsRemaining - amount >= 0 || eventMetadata.tiers[tier].ticketsRemaining === -1, "Not enough tickets available");
+    event.amountCollected += price * amount;
+    eventMetadata.tiers[tier].ticketsRemaining -= amount;
+    this.eventMetadataById.set(eventId, eventMetadata);
+    this.eventById.set(eventId, event); // mint nft on nft contract
+    // const promise = NearPromise.new("nft_contract_accountId").functionCall(
+    //     "nft_mint",
+    //     bytes(
+    //         JSON.stringify({
+    //             token_id: "eventId",
+    //             metadata: "something",
+    //             receiverId: accountId,
+    //         })
+    //     ),
+    //     BigInt(0),
+    //     FIVE_TGAS
+    // );
+  } // cancel event before it starts and refund to all ticket buyers, only organizer should be able to cancel.
+
+
+  cancelEvent({
+    eventId
+  }) {
+    let event = this.eventById.get(eventId);
+    assert(blockTimestamp() < BigInt(event.timestamp.valueOf()), "Event has already started");
+  } // let organizer withdraw when event ends.
   // @call
   // withdraw({ eventId });
 
 
-}, (_applyDecoratedDescriptor(_class2.prototype, "createEvent", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "createEvent"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "getEvent", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "getEvent"), _class2.prototype)), _class2)) || _class);
+}, (_applyDecoratedDescriptor(_class2.prototype, "createEvent", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "createEvent"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "getEvent", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "getEvent"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "buyTicket", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "buyTicket"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "cancelEvent", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "cancelEvent"), _class2.prototype)), _class2)) || _class);
+function cancelEvent() {
+  let _state = Events._getState();
+
+  if (!_state && Events._requireInit()) {
+    throw new Error("Contract must be initialized");
+  }
+
+  let _contract = Events._create();
+
+  if (_state) {
+    Events._reconstruct(_contract, _state);
+  }
+
+  let _args = Events._getArgs();
+
+  let _result = _contract.cancelEvent(_args);
+
+  Events._saveToStorage(_contract);
+
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Events._serialize(_result));
+}
+function buyTicket() {
+  let _state = Events._getState();
+
+  if (!_state && Events._requireInit()) {
+    throw new Error("Contract must be initialized");
+  }
+
+  let _contract = Events._create();
+
+  if (_state) {
+    Events._reconstruct(_contract, _state);
+  }
+
+  let _args = Events._getArgs();
+
+  let _result = _contract.buyTicket(_args);
+
+  Events._saveToStorage(_contract);
+
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Events._serialize(_result));
+}
 function getEvent() {
   let _state = Events._getState();
 
@@ -1156,5 +1273,5 @@ function createEvent() {
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Events._serialize(_result));
 }
 
-export { Events, createEvent, getEvent };
+export { Events, buyTicket, cancelEvent, createEvent, getEvent };
 //# sourceMappingURL=events.js.map

@@ -73,6 +73,10 @@ export class EventMetadata {
         this.title = title;
         this.eventMetadata = eventMetadata;
         this.host = new Host({ name: hostName, accountId: hostAccountId });
-        this.tiers = new Array(new Tier(tiersInformation));
+        let tiers = new Array(tiersInformation.length);
+        for (let i = 0; i < tiers.length; i++) {
+            tiers[i] = new Tier(tiersInformation[i]);
+        }
+        this.tiers = tiers;
     }
 }

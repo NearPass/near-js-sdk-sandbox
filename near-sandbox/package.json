@@ -10,7 +10,7 @@
         "build:contract": "cd contract && npm run build",
         "test": "npm run test:unit && npm run test:integration",
         "test:unit": "cd contract && npm test",
-        "test:integration": "cd integration-tests && npm test -- -- \"./contract/build/counter.wasm\" \"./contract/build/cross.wasm\"",
+        "test:integration": "cd integration-tests && npm test -- -- \"./contract/build/events.wasm\" \"./contract/build/nft.wasm\"",
         "postinstall": "cd frontend && npm install && cd .. && cd integration-tests && npm install && cd .. && cd contract && npm install"
     },
     "devDependencies": {
