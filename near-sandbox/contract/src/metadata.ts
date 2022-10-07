@@ -1,3 +1,4 @@
+import { assert } from "near-sdk-js";
 import { AccountId } from "near-sdk-js/lib/types";
 
 export type EventId = string;
@@ -24,16 +25,43 @@ export class Tier {
     }
 }
 
+export class Ticket {
+    ticketId: string; // tokenId returned from NFT contract;
+    eventId: string;
+    accountId: AccountId; // owner of ticket
+    used: boolean; // true means the ticket owner attended the event
+    redeemable: boolean; // whether the owner can claim the price in case the event gets cancelled.
+    tier: Tier;
+
+    constructor({ ticketId, eventId, accountId, tier }) {
+        this.ticketId = ticketId;
+        this.eventId = eventId;
+        this.accountId = accountId;
+        this.tier = tier;
+        this.used = false;
+        this.redeemable = true;
+    }
+}
+
 export class Event {
     title: string;
     active: boolean;
     timestamp: number;
     amountCollected: number;
+    host: Host;
 
-    constructor({ title, active, timestamp, amountCollected }) {
+    constructor({
+        title,
+        active,
+        timestamp,
+        amountCollected,
+        hostName,
+        hostAccountId,
+    }) {
         this.title = title;
         this.active = active;
         this.timestamp = timestamp;
+        this.host = new Host({ name: hostName, accountId: hostAccountId });
         this.amountCollected = amountCollected;
     }
 }
@@ -60,19 +88,11 @@ export class EventMetadata {
      * }
      */
     eventMetadata: string;
-    host: Host;
     tiers: Tier[];
 
-    constructor({
-        title,
-        eventMetadata,
-        hostName,
-        hostAccountId,
-        tiersInformation,
-    }) {
+    constructor({ title, eventMetadata, tiersInformation }) {
         this.title = title;
         this.eventMetadata = eventMetadata;
-        this.host = new Host({ name: hostName, accountId: hostAccountId });
         let tiers = new Array(tiersInformation.length);
         for (let i = 0; i < tiers.length; i++) {
             tiers[i] = new Tier(tiersInformation[i]);

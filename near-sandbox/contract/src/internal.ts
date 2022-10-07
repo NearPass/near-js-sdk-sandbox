@@ -18,13 +18,13 @@ export function internalCreateEvent({
         timestamp: eventStart,
         active: true,
         amountCollected: 0,
+        hostAccountId: accountId,
+        hostName,
     });
 
     let eventMetadata = new EventMetadata({
         eventMetadata: eventMetadataUrl,
         title,
-        hostAccountId: accountId,
-        hostName,
         tiersInformation,
     });
 

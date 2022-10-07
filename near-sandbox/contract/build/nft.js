@@ -1371,7 +1371,7 @@ function internalMint({
     Object.entries(perpetualRoyalties).forEach(([account, amount], index) => {
       royalty[account] = amount;
     });
-  } //specify the token struct that contains the owner ID 
+  } //specify the token struct that contains the owner ID
 
 
   let token = new Token({
@@ -1412,6 +1412,7 @@ function internalMint({
   let requiredStorageInBytes = storageUsage().valueOf() - initialStorageUsage.valueOf(); //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
 
   refundDeposit(requiredStorageInBytes);
+  return tokenId;
 }
 
 // @ts-nocheck
