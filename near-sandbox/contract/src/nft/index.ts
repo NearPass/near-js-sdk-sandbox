@@ -31,7 +31,6 @@ import {
     internalNftRevoke,
     internalNftRevokeAll,
 } from "./approval";
-import { internalNftPayout, internalNftTransferPayout } from "./royalty";
 
 /// This spec can be treated like a version of the standard.
 export const NFT_METADATA_SPEC = "nft-1.0.0";
@@ -46,22 +45,6 @@ export class Contract {
     tokensById: LookupMap = new LookupMap("tokensById");
     tokenMetadataById: UnorderedMap = new UnorderedMap("tokenMetadataById");
     metadata: NFTContractMetadata;
-
-    /*
-        initialization function (can only be called once).
-        this initializes the contract with metadata that was passed in and
-        the owner_id. 
-    */
-    // constructor({
-    //     owner_id,
-    //     metadata = {
-    //         spec: "nft-1.0.0",
-    //         name: "NFT Tutorial Contract",
-    //         symbol: "GOTEAM",
-    //     },
-    // }) {
-
-    // }
 
     @initialize({})
     init({
@@ -78,10 +61,6 @@ export class Contract {
         this.owner_id = owner_id;
         this.metadata = metadata;
     }
-
-    // default() {
-    //     return new Contract({ owner_id: "" });
-    // }
 
     /*
         MINT
@@ -175,41 +154,6 @@ export class Contract {
             tokenId: token_id,
             accountId: account_id,
             msg: msg,
-        });
-    }
-
-    /*
-        ROYALTY
-    */
-    @view({})
-    //calculates the payout for a token given the passed in balance. This is a view method
-    nft_payout({ token_id, balance, max_len_payout }) {
-        return internalNftPayout({
-            contract: this,
-            tokenId: token_id,
-            balance: balance,
-            maxLenPayout: max_len_payout,
-        });
-    }
-
-    @call({})
-    //transfers the token to the receiver ID and returns the payout object that should be payed given the passed in balance.
-    nft_transfer_payout({
-        receiver_id,
-        token_id,
-        approval_id,
-        memo,
-        balance,
-        max_len_payout,
-    }) {
-        return internalNftTransferPayout({
-            contract: this,
-            receiverId: receiver_id,
-            tokenId: token_id,
-            approvalId: approval_id,
-            memo: memo,
-            balance: balance,
-            maxLenPayout: max_len_payout,
         });
     }
 
