@@ -11,7 +11,7 @@ import {
     initialize,
 } from "near-sdk-js";
 import { promiseResult } from "near-sdk-js/lib/api";
-import { AccountId } from "near-sdk-js/lib/types";
+import { AccountId, Base58Error, ONE_NEAR } from "near-sdk-js/lib/types";
 import { internalCreateEvent } from "./internal";
 import { Event, EventMetadata, Host, Ticket, Tier } from "./metadata";
 
@@ -33,9 +33,13 @@ class EventResult {
     }
 }
 
+const FIVE_TGAS = BigInt(5_000_000_000_000);
+const NO_DEPOSIT = BigInt(0);
+const NO_ARGS = bytes(JSON.stringify({}));
+
 @NearBindgen({})
 export class Events {
-    nft_contract_id: AccountId;
+    nft_contract_id: AccountId = "";
     owner_id: string = "";
     numberOfEvents: number = 0;
     eventsPerOwner = new LookupMap("eventsPerOwner");
@@ -47,6 +51,11 @@ export class Events {
     init({ nft_contract_id }: { nft_contract_id: AccountId }) {
         this.nft_contract_id = nft_contract_id;
         near.log(`NFT Contract Id set to ${nft_contract_id}`);
+    }
+
+    @view({})
+    getNFTContractID() {
+        return this.nft_contract_id;
     }
 
     @call({ payableFunction: true })
@@ -128,25 +137,61 @@ export class Events {
                         description: "Ticket to NearPass event",
                         issuedAt: near.blockTimestamp().toString(),
                     },
-                    receiverId: accountId,
+                    receiver_id: accountId,
                 })
             ),
-            BigInt(0),
-            BigInt(10_000_000_000)
+            ONE_NEAR,
+            BigInt(14_000_000_000_000)
         );
-
-        // create ticket from the tokenId
-
-        let ticket = new Ticket({
-            ticketId: promiseResult(0),
-            accountId: accountId,
-            eventId: eventId,
-            tier: eventMetadata.tiers[tier],
-        });
-
-        this.ticketById.set(promiseResult(0), ticket);
+        // .then(
+        //     NearPromise.new(near.currentAccountId()).functionCall(
+        //         "buyTicketCallback",
+        //         bytes(
+        //             JSON.stringify({
+        //                 accountId: accountId,
+        //                 eventId: eventId,
+        //                 tier: tier,
+        //             })
+        //         ),
+        //         NO_DEPOSIT,
+        //         BigInt(40_000_000_000_000)
+        //     )
+        // );
 
         return promise.asReturn();
+    }
+
+    @call({ privateFunction: true })
+    buyTicketCallback({ accountId, eventId, tier }) {
+        let succeeded = false;
+        let result = undefined;
+
+        try {
+            result = promiseResult(0) as string;
+            succeeded = true;
+        } catch (e) {
+            // rollback
+            near.log(`Catch ${e}`); // Catch {}
+        } finally {
+            if (succeeded) {
+                near.log(`TicketId: ${result}`);
+            } else {
+                near.log("Promise failed");
+            }
+        }
+
+        // let eventMetadata = this.eventMetadataById.get(
+        //     eventId
+        // ) as EventMetadata;
+        // let ticketId = near.promiseResult(0) as string;
+        // let ticket = new Ticket({
+        //     ticketId: ticketId,
+        //     accountId: accountId,
+        //     eventId: eventId,
+        //     tier: eventMetadata.tiers[tier],
+        // });
+        // this.ticketById.set(ticketId, ticket);
+        // return ticketId;
     }
 
     // cancel event before it starts and refund to all ticket buyers, only organizer should be able to cancel.

@@ -5,7 +5,7 @@ const EVENT_METADATA = {
     eventId: "nearpass",
     title: "NearPass",
     eventMetadataUrl: "someurl",
-    eventStart: "1665977063000000000",
+    eventStart: "1666977063000000000",
     hostName: "Nikhil",
     tiersInformation: [
         { price: 1, thumbnail: "thumbnail_url", ticketsRemaining: 10 },
@@ -14,7 +14,7 @@ const EVENT_METADATA = {
 
 const EVENT_RESULT = {
     title: "NearPass",
-    timestamp: "1665977063000000000",
+    timestamp: "1666977063000000000",
     eventId: "nearpass",
     tiers: [{ price: 1, thumbnail: "thumbnail_url", ticketsRemaining: 10 }],
     host: { name: "Nikhil", accountId: "ali.test.near" },
@@ -73,20 +73,50 @@ test("Not able to create duplicate event", async (t) => {
     );
 });
 
+test("directly mint NFT", async (t) => {
+    const { nft, ali, bob } = t.context.accounts;
+    await ali.call(
+        nft,
+        "nft_mint",
+        {
+            token_id: "nearpass",
+            metadata: {
+                title: "NearPass #1",
+                description: "Ticket to NearPass event",
+                issuedAt: "12387123891723812371",
+            },
+            receiver_id: ali.accountId,
+        },
+        {
+            attachedDeposit: NEAR.parse("1"),
+        }
+    );
+
+    let result = await nft.view("nft_supply_for_owner", {
+        account_id: ali.accountId,
+    });
+
+    t.is(result, 1);
+});
+
 test("User should be able to buy tickets", async (t) => {
     const { events, nft, ali, bob } = t.context.accounts;
     await ali.call(events, "createEvent", EVENT_METADATA, {
         attachedDeposit: NEAR.parse("1"),
     });
-    await bob.call(
+    let tokenId = await bob.call(
         events,
         "buyTicket",
         { eventId: "nearpass" },
-        { attachedDeposit: NEAR.parse("1") }
+        {
+            attachedDeposit: NEAR.parse("2"),
+            gas: BigInt(300_000_000_000_000).toString(),
+        }
     );
 
     let result = await nft.view("nft_supply_for_owner", {
-        accountId: bob.accountId,
+        account_id: bob.accountId,
     });
+    console.log(tokenId);
     t.is(result, 1);
 });
