@@ -1137,19 +1137,22 @@ class UnorderedSet {
 //defines the payout type we'll be returning as a part of the royalty standards.
 class Token {
   constructor({
-    ownerId,
+    owner_id,
     approvedAccountIds,
     nextApprovalId,
     royalty
   }) {
     //owner of the token
-    this.owner_id = ownerId, //list of approved account IDs that have access to transfer the token. This maps an account ID to an approval ID
-    this.approved_account_ids = approvedAccountIds, //the next approval ID to give out. 
-    this.next_approval_id = nextApprovalId, //keep track of the royalty percentages for the token in a hash map
+    this.owner_id = owner_id; //list of approved account IDs that have access to transfer the token. This maps an account ID to an approval ID
+
+    this.approved_account_ids = approvedAccountIds; //the next approval ID to give out.
+
+    this.next_approval_id = nextApprovalId; //keep track of the royalty percentages for the token in a hash map
+
     this.royalty = royalty;
   }
 
-} //The Json token is what will be returned from view calls. 
+} //The Json token is what will be returned from view calls.
 
 class JsonToken {
   constructor({
@@ -1182,10 +1185,6 @@ function restoreOwners(collection) {
 
   return UnorderedSet.deserialize(collection);
 } //convert the royalty percentage and amount to pay into a payout (U128)
-
-function royaltyToPayout(royaltyPercentage, amountToPay) {
-  return (BigInt(royaltyPercentage) * BigInt(amountToPay) / BigInt(10000)).toString();
-} //refund the storage taken up by passed in approved account IDs and send the funds to the passed in account ID.
 
 function refundApprovedAccountIdsIter(accountId, approvedAccountIds) {
   //get the storage total by going through and summing all the bytes for each approved account IDs
@@ -1303,7 +1302,7 @@ function internalTransfer(contract, senderId, receiverId, tokenId, approvalId, m
   internalAddTokenToOwner(contract, receiverId, tokenId); //we create a new token struct
 
   let newToken = new Token({
-    ownerId: receiverId,
+    owner_id: receiverId,
     //reset the approval account IDs
     approvedAccountIds: {},
     nextApprovalId: token.next_approval_id,
@@ -1356,41 +1355,42 @@ function internalMint({
   contract,
   tokenId,
   metadata,
-  receiverId,
-  perpetualRoyalties
+  receiver_id
 }) {
   //measure the initial storage being used on the contract TODO
   let initialStorageUsage = storageUsage(); // create a royalty map to store in the token
-
-  let royalty = {}; // if perpetual royalties were passed into the function: TODO: add isUndefined fn
-
-  if (perpetualRoyalties != null) {
-    //make sure that the length of the perpetual royalties is below 7 since we won't have enough GAS to pay out that many people
-    assert(Object.keys(perpetualRoyalties).length < 7, "Cannot add more than 6 perpetual royalty amounts"); //iterate through the perpetual royalties and insert the account and amount in the royalty map
-
-    Object.entries(perpetualRoyalties).forEach(([account, amount], index) => {
-      royalty[account] = amount;
-    });
-  } //specify the token struct that contains the owner ID
-
+  // let royalty: { [accountId: string]: number } = {};
+  // if perpetual royalties were passed into the function: TODO: add isUndefined fn
+  // if (perpetualRoyalties != null) {
+  //     //make sure that the length of the perpetual royalties is below 7 since we won't have enough GAS to pay out that many people
+  //     assert(
+  //         Object.keys(perpetualRoyalties).length < 7,
+  //         "Cannot add more than 6 perpetual royalty amounts"
+  //     );
+  //     //iterate through the perpetual royalties and insert the account and amount in the royalty map
+  //     Object.entries(perpetualRoyalties).forEach(
+  //         ([account, amount], index) => {
+  //             royalty[account] = amount;
+  //         }
+  //     );
+  // }
+  //specify the token struct that contains the owner ID
 
   let token = new Token({
     //set the owner ID equal to the receiver ID passed into the function
-    ownerId: receiverId,
+    owner_id: receiver_id,
     //we set the approved account IDs to the default value (an empty map)
     approvedAccountIds: {},
     //the next approval ID is set to 0
-    nextApprovalId: 0,
-    //the map of perpetual royalties for the token (The owner will get 100% - total perpetual royalties)
-    royalty
+    nextApprovalId: 0
   }); //insert the token ID and token struct and make sure that the token doesn't exist
 
   assert(!contract.tokensById.containsKey(tokenId), "Token already exists");
-  contract.tokensById.set(tokenId, token); //insert the token ID and metadata
+  contract.tokensById.set(tokenId, token); // //insert the token ID and metadata
 
-  contract.tokenMetadataById.set(tokenId, metadata); //call the internal method for adding the token to the owner
+  contract.tokenMetadataById.set(tokenId, metadata); // //call the internal method for adding the token to the owner
 
-  internalAddTokenToOwner(contract, token.owner_id, tokenId); // Construct the mint log as per the events standard.
+  internalAddTokenToOwner(contract, token.owner_id, tokenId); // // Construct the mint log as per the events standard.
 
   let nftMintLog = {
     // Standard name ("nep171").
@@ -1405,11 +1405,11 @@ function internalMint({
       // Vector of token IDs that were minted.
       token_ids: [tokenId]
     }]
-  }; // Log the json.
+  }; // // Log the json.
 
-  log(`EVENT_JSON:${JSON.stringify(nftMintLog)}`); //calculate the required storage which was the used - initial TODO
+  log(`EVENT_JSON:${JSON.stringify(nftMintLog)}`); // //calculate the required storage which was the used - initial TODO
 
-  let requiredStorageInBytes = storageUsage().valueOf() - initialStorageUsage.valueOf(); //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+  let requiredStorageInBytes = storageUsage().valueOf() - initialStorageUsage.valueOf(); // //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
 
   refundDeposit(requiredStorageInBytes);
   return tokenId;
@@ -1620,17 +1620,18 @@ function internalNftTokens({
 
 function internalSupplyForOwner({
   contract,
-  accountId
+  account_id
 }) {
   //get the set of tokens for the passed in owner
-  let tokens = restoreOwners(contract.tokensPerOwner.get(accountId)); //if there isn't a set of tokens for the passed in account ID, we'll return 0
+  log(`${contract} - ${account_id}`);
+  let tokens = restoreOwners(contract.tokensPerOwner.get(account_id)); //if there isn't a set of tokens for the passed in account ID, we'll return 0
 
   if (tokens == null) {
     return 0;
-  } //if there is some set of tokens, we'll return the length 
+  } // //if there is some set of tokens, we'll return the length
 
 
-  return tokens.len();
+  return tokens.length;
 } //Query for all the tokens for an owner
 
 function internalTokensForOwner({
@@ -1805,114 +1806,18 @@ function internalNftRevokeAll({
   }
 }
 
-// @ts-nocheck
-//calculates the payout for a token given the passed in balance. This is a view method
-function internalNftPayout({
-  contract,
-  tokenId,
-  balance,
-  maxLenPayout
-}) {
-  //get the token object
-  let token = contract.tokensById.get(tokenId);
-
-  if (token == null) {
-    undefined("no token");
-  } //get the owner of the token
-
-
-  let ownerId = token.owner_id; //keep track of the total perpetual royalties
-
-  let totalPerpetual = 0; //keep track of the payout object to send back
-
-  let payoutObj = {}; //get the royalty object from token
-
-  let royalty = token.royalty; //make sure we're not paying out to too many people (GAS limits this)
-
-  assert(Object.keys(royalty).length <= maxLenPayout, "Market cannot payout to that many receivers"); //go through each key and value in the royalty object
-
-  Object.entries(royalty).forEach(([key, value], index) => {
-    //only insert into the payout if the key isn't the token owner (we add their payout at the end)
-    if (key != ownerId) {
-      payoutObj[key] = royaltyToPayout(value, balance);
-      totalPerpetual += value;
-    }
-  }); // payout to previous owner who gets 100% - total perpetual royalties
-
-  payoutObj[ownerId] = royaltyToPayout(10000 - totalPerpetual, balance); //return the payout object
-
-  return {
-    payout: payoutObj
-  };
-} //transfers the token to the receiver ID and returns the payout object that should be payed given the passed in balance. 
-
-function internalNftTransferPayout({
-  contract,
-  receiverId,
-  tokenId,
-  approvalId,
-  memo,
-  balance,
-  maxLenPayout
-}) {
-  //assert that the user attached 1 yocto NEAR for security reasons
-  assertOneYocto(); //get the sender ID
-
-  let senderId = predecessorAccountId(); //transfer the token to the passed in receiver and get the previous token object back
-
-  let previousToken = internalTransfer(contract, senderId, receiverId, tokenId, approvalId, memo); //refund the previous token owner for the storage used up by the previous approved account IDs
-
-  refundApprovedAccountIds(previousToken.owner_id, previousToken.approved_account_ids); //get the owner of the token
-
-  let ownerId = previousToken.owner_id; //keep track of the total perpetual royalties
-
-  let totalPerpetual = 0; //keep track of the payout object to send back
-
-  let payoutObj = {}; //get the royalty object from token
-
-  let royalty = previousToken.royalty; //make sure we're not paying out to too many people (GAS limits this)
-
-  assert(Object.keys(royalty).length <= maxLenPayout, "Market cannot payout to that many receivers"); //go through each key and value in the royalty object
-
-  Object.entries(royalty).forEach(([key, value], index) => {
-    //only insert into the payout if the key isn't the token owner (we add their payout at the end)
-    if (key != ownerId) {
-      payoutObj[key] = royaltyToPayout(value, balance);
-      totalPerpetual += value;
-    }
-  }); // payout to previous owner who gets 100% - total perpetual royalties
-
-  payoutObj[ownerId] = royaltyToPayout(10000 - totalPerpetual, balance); //return the payout object
-
-  return {
-    payout: payoutObj
-  };
-}
-
-var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _dec7, _dec8, _dec9, _dec10, _dec11, _dec12, _dec13, _dec14, _dec15, _dec16, _dec17, _dec18, _class, _class2;
+var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _dec7, _dec8, _dec9, _dec10, _dec11, _dec12, _dec13, _dec14, _dec15, _dec16, _class, _class2;
 
 const NFT_METADATA_SPEC = "nft-1.0.0"; /// This is the name of the NFT standard we're using
 
 const NFT_STANDARD_NAME = "nep171";
-let Contract = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({}), _dec4 = view({}), _dec5 = call({}), _dec6 = call({}), _dec7 = call({}), _dec8 = view({}), _dec9 = call({}), _dec10 = view({}), _dec11 = call({}), _dec12 = call({}), _dec13 = call({}), _dec14 = view({}), _dec15 = view({}), _dec16 = view({}), _dec17 = view({}), _dec18 = view({}), _dec(_class = (_class2 = class Contract {
+let Contract = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({
+  payableFunction: true
+}), _dec4 = view({}), _dec5 = call({}), _dec6 = call({}), _dec7 = call({}), _dec8 = view({}), _dec9 = call({}), _dec10 = call({}), _dec11 = call({}), _dec12 = view({}), _dec13 = view({}), _dec14 = view({}), _dec15 = view({}), _dec16 = view({}), _dec(_class = (_class2 = class Contract {
   tokensPerOwner = new LookupMap("tokensPerOwner");
   tokensById = new LookupMap("tokensById");
   tokenMetadataById = new UnorderedMap("tokenMetadataById");
 
-  /*
-      initialization function (can only be called once).
-      this initializes the contract with metadata that was passed in and
-      the owner_id. 
-  */
-  // constructor({
-  //     owner_id,
-  //     metadata = {
-  //         spec: "nft-1.0.0",
-  //         name: "NFT Tutorial Contract",
-  //         symbol: "GOTEAM",
-  //     },
-  // }) {
-  // }
   init({
     owner_id,
     metadata = {
@@ -1923,10 +1828,7 @@ let Contract = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({})
   }) {
     this.owner_id = owner_id;
     this.metadata = metadata;
-  } // default() {
-  //     return new Contract({ owner_id: "" });
-  // }
-
+  }
   /*
       MINT
   */
@@ -1935,16 +1837,16 @@ let Contract = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({})
   nft_mint({
     token_id,
     metadata,
-    receiver_id,
-    perpetual_royalties
+    receiver_id
   }) {
-    return internalMint({
+    internalMint({
       contract: this,
       tokenId: token_id,
       metadata: metadata,
-      receiverId: receiver_id,
-      perpetualRoyalties: perpetual_royalties
+      receiver_id: receiver_id
     });
+    log(`TokenId: ${token_id}`);
+    return token_id;
   }
   /*
       CORE
@@ -2047,44 +1949,6 @@ let Contract = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({})
       msg: msg
     });
   }
-  /*
-      ROYALTY
-  */
-
-
-  //calculates the payout for a token given the passed in balance. This is a view method
-  nft_payout({
-    token_id,
-    balance,
-    max_len_payout
-  }) {
-    return internalNftPayout({
-      contract: this,
-      tokenId: token_id,
-      balance: balance,
-      maxLenPayout: max_len_payout
-    });
-  }
-
-  //transfers the token to the receiver ID and returns the payout object that should be payed given the passed in balance.
-  nft_transfer_payout({
-    receiver_id,
-    token_id,
-    approval_id,
-    memo,
-    balance,
-    max_len_payout
-  }) {
-    return internalNftTransferPayout({
-      contract: this,
-      receiverId: receiver_id,
-      tokenId: token_id,
-      approvalId: approval_id,
-      memo: memo,
-      balance: balance,
-      maxLenPayout: max_len_payout
-    });
-  }
 
   //approve an account ID to transfer a token on your behalf
   nft_revoke({
@@ -2151,7 +2015,7 @@ let Contract = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({})
   }) {
     return internalSupplyForOwner({
       contract: this,
-      accountId: account_id
+      account_id: account_id
     });
   }
   /*
@@ -2166,7 +2030,7 @@ let Contract = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({})
     });
   }
 
-}, (_applyDecoratedDescriptor(_class2.prototype, "init", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "init"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_mint", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_mint"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_token", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_token"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_transfer", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_transfer"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_transfer_call", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_transfer_call"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_resolve_transfer", [_dec7], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_resolve_transfer"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_is_approved", [_dec8], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_is_approved"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_approve", [_dec9], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_approve"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_payout", [_dec10], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_payout"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_transfer_payout", [_dec11], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_transfer_payout"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_revoke", [_dec12], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_revoke"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_revoke_all", [_dec13], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_revoke_all"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_total_supply", [_dec14], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_total_supply"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_tokens", [_dec15], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_tokens"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_tokens_for_owner", [_dec16], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_tokens_for_owner"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_supply_for_owner", [_dec17], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_supply_for_owner"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_metadata", [_dec18], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_metadata"), _class2.prototype)), _class2)) || _class);
+}, (_applyDecoratedDescriptor(_class2.prototype, "init", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "init"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_mint", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_mint"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_token", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_token"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_transfer", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_transfer"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_transfer_call", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_transfer_call"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_resolve_transfer", [_dec7], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_resolve_transfer"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_is_approved", [_dec8], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_is_approved"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_approve", [_dec9], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_approve"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_revoke", [_dec10], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_revoke"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_revoke_all", [_dec11], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_revoke_all"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_total_supply", [_dec12], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_total_supply"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_tokens", [_dec13], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_tokens"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_tokens_for_owner", [_dec14], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_tokens_for_owner"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_supply_for_owner", [_dec15], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_supply_for_owner"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "nft_metadata", [_dec16], Object.getOwnPropertyDescriptor(_class2.prototype, "nft_metadata"), _class2.prototype)), _class2)) || _class);
 function nft_metadata() {
   let _state = Contract._getState();
 
@@ -2297,45 +2161,6 @@ function nft_revoke() {
 
   Contract._saveToStorage(_contract);
 
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Contract._serialize(_result));
-}
-function nft_transfer_payout() {
-  let _state = Contract._getState();
-
-  if (!_state && Contract._requireInit()) {
-    throw new Error("Contract must be initialized");
-  }
-
-  let _contract = Contract._create();
-
-  if (_state) {
-    Contract._reconstruct(_contract, _state);
-  }
-
-  let _args = Contract._getArgs();
-
-  let _result = _contract.nft_transfer_payout(_args);
-
-  Contract._saveToStorage(_contract);
-
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Contract._serialize(_result));
-}
-function nft_payout() {
-  let _state = Contract._getState();
-
-  if (!_state && Contract._requireInit()) {
-    throw new Error("Contract must be initialized");
-  }
-
-  let _contract = Contract._create();
-
-  if (_state) {
-    Contract._reconstruct(_contract, _state);
-  }
-
-  let _args = Contract._getArgs();
-
-  let _result = _contract.nft_payout(_args);
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Contract._serialize(_result));
 }
 function nft_approve() {
@@ -2495,5 +2320,5 @@ function init() {
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Contract._serialize(_result));
 }
 
-export { Contract, NFT_METADATA_SPEC, NFT_STANDARD_NAME, init, nft_approve, nft_is_approved, nft_metadata, nft_mint, nft_payout, nft_resolve_transfer, nft_revoke, nft_revoke_all, nft_supply_for_owner, nft_token, nft_tokens, nft_tokens_for_owner, nft_total_supply, nft_transfer, nft_transfer_call, nft_transfer_payout };
+export { Contract, NFT_METADATA_SPEC, NFT_STANDARD_NAME, init, nft_approve, nft_is_approved, nft_metadata, nft_mint, nft_resolve_transfer, nft_revoke, nft_revoke_all, nft_supply_for_owner, nft_token, nft_tokens, nft_tokens_for_owner, nft_total_supply, nft_transfer, nft_transfer_call };
 //# sourceMappingURL=nft.js.map

@@ -5,6 +5,7 @@ import {
     LookupMap,
     UnorderedMap,
     initialize,
+    near,
 } from "near-sdk-js";
 import {
     NFTContractMetadata,
@@ -65,15 +66,16 @@ export class Contract {
     /*
         MINT
     */
-    @call({})
-    nft_mint({ token_id, metadata, receiver_id, perpetual_royalties }) {
-        return internalMint({
+    @call({ payableFunction: true })
+    nft_mint({ token_id, metadata, receiver_id }) {
+        let tokenId = internalMint({
             contract: this,
             tokenId: token_id,
             metadata: metadata,
-            receiverId: receiver_id,
-            perpetualRoyalties: perpetual_royalties,
+            receiver_id: receiver_id,
         });
+        near.log(`TokenId: ${token_id}`);
+        return token_id;
     }
 
     /*
@@ -208,7 +210,7 @@ export class Contract {
     nft_supply_for_owner({ account_id }) {
         return internalSupplyForOwner({
             contract: this,
-            accountId: account_id,
+            account_id: account_id,
         });
     }
 

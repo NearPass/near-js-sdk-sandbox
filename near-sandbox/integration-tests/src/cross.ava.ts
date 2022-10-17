@@ -29,13 +29,15 @@ test.afterEach(async (t) => {
 test("cross contract increment", async (t) => {
     const { counter, crossCallCounter } = t.context.accounts;
 
-    await crossCallCounter.call(
+    let result = await crossCallCounter.call(
         crossCallCounter,
         "crossCallIncrement",
         { contractId: counter.accountId },
         {}
     );
 
-    let message = await counter.view("getCount");
-    t.deepEqual(message, 1);
+    console.log(result);
+
+    let message = await counter.view("get_counter");
+    t.deepEqual(message, Number(result));
 });

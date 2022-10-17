@@ -37,10 +37,9 @@ export function internalCreateEvent({
     contract.numberOfEvents += 1;
     near.log(`Event Created: ${accountId} created ${title} event`);
 
-    let requiredStorageInBytes =
-        near.storageUsage() - initialStorageUsage.valueOf();
+    // let requiredStorageInBytes = near.storageUsage() - initialStorageUsage.valueOf();
 
-    refundDeposit(requiredStorageInBytes);
+    // refundDeposit(requiredStorageInBytes);
 
     return eventId;
 }

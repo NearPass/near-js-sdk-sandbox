@@ -10,4 +10,5 @@ fi
 echo ">> Deploying contract"
 
 # https://docs.near.org/tools/near-cli#near-dev-deploy
-near dev-deploy --wasmFile build/events.wasm
+echo '{ "nft_contract_id": "'"$CONTRACT"'" }'
+near dev-deploy --wasmFile build/events.wasm --initFunction init --initArgs '{ "nft_contract_id": "'"$CONTRACT"'" }'

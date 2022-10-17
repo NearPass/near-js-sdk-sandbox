@@ -463,6 +463,8 @@ var CurveType;
   CurveType[CurveType["SECP256K1"] = 1] = "SECP256K1";
 })(CurveType || (CurveType = {}));
 
+const ONE_NEAR = 1000000000000000000000000n;
+
 const U64_MAX = 2n ** 64n - 1n;
 const EVICTED_REGISTER = U64_MAX - 1n;
 function log(...params) {
@@ -552,6 +554,15 @@ function promiseBatchActionDeleteAccount(promiseIndex, beneficiaryId) {
 function promiseBatchActionFunctionCallWeight(promiseIndex, methodName, args, amount, gas, weight) {
   env.promise_batch_action_function_call_weight(promiseIndex, methodName, args, amount, gas, weight);
 }
+function promiseResult(resultIdx) {
+  let status = env.promise_result(resultIdx, 0);
+
+  if (status == PromiseResult.Successful) {
+    return env.read_register(0);
+  } else {
+    throw Error(`Promise result ${status == PromiseResult.Failed ? "Failed" : status == PromiseResult.NotReady ? "NotReady" : status}`);
+  }
+}
 function promiseReturn(promiseIdx) {
   env.promise_return(promiseIdx);
 }
@@ -572,9 +583,6 @@ function storageRemove(key) {
   }
 
   return false;
-}
-function storageByteCost() {
-  return 10000000000000000000n;
 }
 
 function initialize({}) {
@@ -1320,11 +1328,17 @@ class Event {
     title,
     active,
     timestamp,
-    amountCollected
+    amountCollected,
+    hostName,
+    hostAccountId
   }) {
     this.title = title;
     this.active = active;
     this.timestamp = timestamp;
+    this.host = new Host({
+      name: hostName,
+      accountId: hostAccountId
+    });
     this.amountCollected = amountCollected;
   }
 
@@ -1352,16 +1366,10 @@ class EventMetadata {
   constructor({
     title,
     eventMetadata,
-    hostName,
-    hostAccountId,
     tiersInformation
   }) {
     this.title = title;
     this.eventMetadata = eventMetadata;
-    this.host = new Host({
-      name: hostName,
-      accountId: hostAccountId
-    });
     let tiers = new Array(tiersInformation.length);
 
     for (let i = 0; i < tiers.length; i++) {
@@ -1382,19 +1390,19 @@ function internalCreateEvent({
   hostName,
   tiersInformation
 }) {
-  let initialStorageUsage = storageUsage();
+  storageUsage();
   let accountId = predecessorAccountId();
   let event = new Event({
     title,
     timestamp: eventStart,
     active: true,
-    amountCollected: 0
+    amountCollected: 0,
+    hostAccountId: accountId,
+    hostName
   });
   let eventMetadata = new EventMetadata({
     eventMetadata: eventMetadataUrl,
     title,
-    hostAccountId: accountId,
-    hostName,
     tiersInformation
   });
   log(eventMetadata.tiers);
@@ -1402,25 +1410,13 @@ function internalCreateEvent({
   contract.eventMetadataById.set(eventId, eventMetadata);
   contract.eventById.set(eventId, event);
   contract.numberOfEvents += 1;
-  log(`Event Created: ${accountId} created ${title} event`);
-  let requiredStorageInBytes = storageUsage() - initialStorageUsage.valueOf();
-  refundDeposit(requiredStorageInBytes);
+  log(`Event Created: ${accountId} created ${title} event`); // let requiredStorageInBytes = near.storageUsage() - initialStorageUsage.valueOf();
+  // refundDeposit(requiredStorageInBytes);
+
   return eventId;
 }
-function refundDeposit(storageUsed) {
-  let requiredCost = storageUsed * storageByteCost().valueOf();
-  let attachedDeposit$1 = attachedDeposit().valueOf();
-  assert(attachedDeposit$1 >= requiredCost, `Must attach ${requiredCost} yoctoNear to cover storage`);
-  let refund = attachedDeposit$1 - requiredCost;
-  log(`Refunded ${refund} yoctoNear`);
 
-  if (refund > 1) {
-    const promise = promiseBatchCreate(predecessorAccountId());
-    promiseBatchActionTransfer(promise, refund);
-  }
-}
-
-var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _class, _class2;
+var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _dec7, _dec8, _class, _class2;
 
 class EventResult {
   constructor({
@@ -1441,22 +1437,33 @@ class EventResult {
 
 }
 
-let Events = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({
+BigInt(5_000_000_000_000);
+BigInt(0);
+bytes(JSON.stringify({}));
+let Events = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = view({}), _dec4 = call({
   payableFunction: true
-}), _dec4 = view({}), _dec5 = call({
+}), _dec5 = view({}), _dec6 = call({
   payableFunction: true
-}), _dec6 = call({}), _dec(_class = (_class2 = class Events {
+}), _dec7 = call({
+  privateFunction: true
+}), _dec8 = call({}), _dec(_class = (_class2 = class Events {
+  nft_contract_id = "";
   owner_id = "";
   numberOfEvents = 0;
   eventsPerOwner = new LookupMap("eventsPerOwner");
   eventMetadataById = new UnorderedMap("eventsMetadata");
   eventById = new LookupMap("eventById");
+  ticketById = new LookupMap("ticketById");
 
   init({
     nft_contract_id
   }) {
     this.nft_contract_id = nft_contract_id;
     log(`NFT Contract Id set to ${nft_contract_id}`);
+  }
+
+  getNFTContractID() {
+    return this.nft_contract_id;
   }
 
   createEvent({
@@ -1488,7 +1495,7 @@ let Events = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({
       title: eventMetadata.title,
       timestamp: event.timestamp,
       eventId,
-      host: eventMetadata.host,
+      host: event.host,
       tiers: eventMetadata.tiers,
       active: event.active
     });
@@ -1518,26 +1525,110 @@ let Events = (_dec = NearBindgen({}), _dec2 = initialize({}), _dec3 = call({
         description: "Ticket to NearPass event",
         issuedAt: blockTimestamp().toString()
       },
-      receiverId: accountId
-    })), BigInt(0), BigInt(10_000_000_000));
+      receiver_id: accountId
+    })), ONE_NEAR, BigInt(14_000_000_000_000)); // .then(
+    //     NearPromise.new(near.currentAccountId()).functionCall(
+    //         "buyTicketCallback",
+    //         bytes(
+    //             JSON.stringify({
+    //                 accountId: accountId,
+    //                 eventId: eventId,
+    //                 tier: tier,
+    //             })
+    //         ),
+    //         NO_DEPOSIT,
+    //         BigInt(40_000_000_000_000)
+    //     )
+    // );
+
     return promise.asReturn();
-  } // buyTicketCallback({ tokenId }) {
-  //     near.log(`Near Promise Count: ${near.promiseResultsCount()}`);
-  // }
-  // cancel event before it starts and refund to all ticket buyers, only organizer should be able to cancel.
+  }
+
+  buyTicketCallback({
+    accountId,
+    eventId,
+    tier
+  }) {
+    let succeeded = false;
+    let result = undefined;
+
+    try {
+      result = promiseResult(0);
+      succeeded = true;
+    } catch (e) {
+      // rollback
+      log(`Catch ${e}`); // Catch {}
+    } finally {
+      if (succeeded) {
+        log(`TicketId: ${result}`);
+      } else {
+        log("Promise failed");
+      }
+    } // let eventMetadata = this.eventMetadataById.get(
+    //     eventId
+    // ) as EventMetadata;
+    // let ticketId = near.promiseResult(0) as string;
+    // let ticket = new Ticket({
+    //     ticketId: ticketId,
+    //     accountId: accountId,
+    //     eventId: eventId,
+    //     tier: eventMetadata.tiers[tier],
+    // });
+    // this.ticketById.set(ticketId, ticket);
+    // return ticketId;
+
+  } // cancel event before it starts and refund to all ticket buyers, only organizer should be able to cancel.
 
 
   cancelEvent({
     eventId
   }) {
-    let event = this.eventById.get(eventId);
-    assert(blockTimestamp() < BigInt(event.timestamp.valueOf()), "Event has already started");
+    let event = this.eventById.get(eventId); // if the event has already started, it cannot be cancelled
+
+    assert(blockTimestamp() < BigInt(event.timestamp.valueOf()), "Event has already started"); // mark event as inactive.
+
+    event.active = false; // mark amountCollected as zero.
+
+    event.amountCollected = 0;
+    this.eventById.set(eventId, event); // all ticket holders need to be refunded.
   } // let organizer withdraw when event ends.
   // @call
-  // withdraw({ eventId });
 
 
-}, (_applyDecoratedDescriptor(_class2.prototype, "init", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "init"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "createEvent", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "createEvent"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "getEvent", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "getEvent"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "buyTicket", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "buyTicket"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "cancelEvent", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "cancelEvent"), _class2.prototype)), _class2)) || _class);
+  withdraw({
+    eventId
+  }) {
+    let event = this.eventById.get(eventId);
+    let accountId = predecessorAccountId(); // check if the event is active.
+
+    assert(event.active, "Event is not active"); // check if the event has already started.
+
+    assert(BigInt(event.timestamp) > blockTimestamp(), "Event hasn't started cannot withdraw"); // check if the event has amountCollected > 0
+
+    assert(event.amountCollected > 0, "No Funds were collected"); // check if the caller is the host
+
+    assert(event.host.accountId == accountId, "Only host can withdraw funds");
+    const promise = promiseBatchCreate(event.host.accountId);
+    promiseBatchActionTransfer(promise, event.amountCollected);
+    return event.amountCollected;
+  } // let attendee claim funds for the ticket when the event is cancelled.
+
+
+  claimRefund({
+    ticketIds
+  }) {
+    for (let i = 0; i < ticketIds.length; i++) {
+      let ticketId = ticketIds[i];
+      let ticket = this.ticketById.get(ticketId);
+      assert(!ticket.used, "Ticket is used cannot refund");
+      const promise = promiseBatchCreate(ticket.accountId);
+      promiseBatchActionTransfer(promise, ticket.tier.price);
+      ticket.redeemable = false;
+      this.ticketById.set(ticketId, ticket);
+    }
+  }
+
+}, (_applyDecoratedDescriptor(_class2.prototype, "init", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "init"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "getNFTContractID", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "getNFTContractID"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "createEvent", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "createEvent"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "getEvent", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "getEvent"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "buyTicket", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "buyTicket"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "buyTicketCallback", [_dec7], Object.getOwnPropertyDescriptor(_class2.prototype, "buyTicketCallback"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "cancelEvent", [_dec8], Object.getOwnPropertyDescriptor(_class2.prototype, "cancelEvent"), _class2.prototype)), _class2)) || _class);
 function cancelEvent() {
   let _state = Events._getState();
 
@@ -1554,6 +1645,27 @@ function cancelEvent() {
   let _args = Events._getArgs();
 
   let _result = _contract.cancelEvent(_args);
+
+  Events._saveToStorage(_contract);
+
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Events._serialize(_result));
+}
+function buyTicketCallback() {
+  let _state = Events._getState();
+
+  if (!_state && Events._requireInit()) {
+    throw new Error("Contract must be initialized");
+  }
+
+  let _contract = Events._create();
+
+  if (_state) {
+    Events._reconstruct(_contract, _state);
+  }
+
+  let _args = Events._getArgs();
+
+  let _result = _contract.buyTicketCallback(_args);
 
   Events._saveToStorage(_contract);
 
@@ -1619,6 +1731,24 @@ function createEvent() {
 
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Events._serialize(_result));
 }
+function getNFTContractID() {
+  let _state = Events._getState();
+
+  if (!_state && Events._requireInit()) {
+    throw new Error("Contract must be initialized");
+  }
+
+  let _contract = Events._create();
+
+  if (_state) {
+    Events._reconstruct(_contract, _state);
+  }
+
+  let _args = Events._getArgs();
+
+  let _result = _contract.getNFTContractID(_args);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Events._serialize(_result));
+}
 function init() {
   let _state = Events._getState();
 
@@ -1635,5 +1765,5 @@ function init() {
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Events._serialize(_result));
 }
 
-export { Events, buyTicket, cancelEvent, createEvent, getEvent, init };
+export { Events, buyTicket, buyTicketCallback, cancelEvent, createEvent, getEvent, getNFTContractID, init };
 //# sourceMappingURL=events.js.map

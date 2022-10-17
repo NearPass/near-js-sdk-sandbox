@@ -193,7 +193,7 @@ export function internalTransfer(
 
     //we create a new token struct
     let newToken = new Token({
-        ownerId: receiverId,
+        owner_id: receiverId,
         //reset the approval account IDs
         approvedAccountIds: {},
         nextApprovalId: token.next_approval_id,
