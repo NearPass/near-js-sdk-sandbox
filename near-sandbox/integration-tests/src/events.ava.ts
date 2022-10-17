@@ -45,7 +45,7 @@ test.beforeEach(async (t) => {
     t.context.accounts = { root, events, nft, ali, bob };
 });
 
-test.afterEach(async (t) => {
+test.afterEach.always(async (t) => {
     // Stop Sandbox server
     await t.context.worker.tearDown().catch((error) => {
         console.log("Failed to stop the Sandbox:", error);
