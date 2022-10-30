@@ -8,9 +8,9 @@ export function internalCreateEvent({
     eventMetadataUrl,
     eventStart,
     hostName,
-    tiersInformation,
+    price,
 }) {
-    let initialStorageUsage = near.storageUsage();
+    // let initialStorageUsage = near.storageUsage();
 
     let accountId = near.predecessorAccountId();
     let event = new Event({
@@ -20,15 +20,13 @@ export function internalCreateEvent({
         amountCollected: 0,
         hostAccountId: accountId,
         hostName,
+        price,
     });
 
     let eventMetadata = new EventMetadata({
         eventMetadata: eventMetadataUrl,
         title,
-        tiersInformation,
     });
-
-    near.log(eventMetadata.tiers);
 
     contract.eventsPerOwner.set(accountId, eventId);
     contract.eventMetadataById.set(eventId, eventMetadata);
@@ -36,7 +34,7 @@ export function internalCreateEvent({
 
     contract.numberOfEvents += 1;
     near.log(`Event Created: ${accountId} created ${title} event`);
-
+    near.log(`EventId: ${eventId}`);
     // let requiredStorageInBytes = near.storageUsage() - initialStorageUsage.valueOf();
 
     // refundDeposit(requiredStorageInBytes);

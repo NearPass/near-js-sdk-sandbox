@@ -9,25 +9,23 @@ import {
     NearPromise,
     bytes,
     initialize,
+    UnorderedSet,
 } from "near-sdk-js";
-import { promiseResult } from "near-sdk-js/lib/api";
-import { AccountId, Base58Error, ONE_NEAR } from "near-sdk-js/lib/types";
+import { AccountId, ONE_NEAR } from "near-sdk-js/lib/types";
 import { internalCreateEvent } from "./internal";
-import { Event, EventMetadata, Host, Ticket, Tier } from "./metadata";
+import { Event, EventMetadata, Host, Ticket } from "./metadata";
 
 class EventResult {
     title: string;
     timestamp: string;
     eventId: string;
-    tiers: Tier[];
     host: Host;
     active: boolean;
 
-    constructor({ title, timestamp, eventId, tiers, host, active }) {
+    constructor({ title, timestamp, eventId, host, active }) {
         this.title = title;
         this.timestamp = timestamp;
         this.eventId = eventId;
-        this.tiers = tiers;
         this.host = host;
         this.active = active;
     }
@@ -45,7 +43,6 @@ export class Events {
     eventsPerOwner = new LookupMap("eventsPerOwner");
     eventMetadataById = new UnorderedMap("eventsMetadata");
     eventById = new LookupMap("eventById");
-    ticketById = new LookupMap("ticketById");
 
     @initialize({})
     init({ nft_contract_id }: { nft_contract_id: AccountId }) {
@@ -65,18 +62,19 @@ export class Events {
         eventMetadataUrl,
         eventStart,
         hostName,
-        tiersInformation,
+        price,
     }) {
         assert(!this.eventById.containsKey(eventId), "Event already created!");
-        internalCreateEvent({
+        let event_id = internalCreateEvent({
             contract: this,
             eventId,
             title,
             eventMetadataUrl,
             eventStart,
             hostName,
-            tiersInformation,
+            price,
         });
+        return event_id;
     }
 
     @view({})
@@ -91,20 +89,19 @@ export class Events {
             timestamp: event.timestamp,
             eventId,
             host: event.host,
-            tiers: eventMetadata.tiers,
             active: event.active,
         });
     }
 
     @call({ payableFunction: true })
-    buyTicket({ eventId, tier = 0, amount = 1 }) {
+    buyTicket({ eventId }) {
         let accountId = near.predecessorAccountId();
         let eventMetadata = this.eventMetadataById.get(
             eventId
         ) as EventMetadata;
         let event = this.eventById.get(eventId) as Event;
 
-        let price = eventMetadata.tiers[tier].price;
+        let price = event.price;
 
         assert(
             near.attachedDeposit() >= price,
@@ -114,49 +111,49 @@ export class Events {
             near.blockTimestamp() < BigInt(event.timestamp.valueOf()),
             "Event has already started"
         );
-        assert(
-            eventMetadata.tiers[tier].ticketsRemaining - amount >= 0 ||
-                eventMetadata.tiers[tier].ticketsRemaining === -1,
-            "Not enough tickets available"
-        );
+        // assert(
+        //     eventMetadata.tiers[tier].ticketsRemaining - amount >= 0 ||
+        //         eventMetadata.tiers[tier].ticketsRemaining === -1,
+        //     "Not enough tickets available"
+        // );
 
-        event.amountCollected += price * amount;
-        eventMetadata.tiers[tier].ticketsRemaining -= amount;
+        event.amountCollected += price;
+        // eventMetadata.tiers[tier].ticketsRemaining -= 1;
 
         this.eventMetadataById.set(eventId, eventMetadata);
         this.eventById.set(eventId, event);
 
         // mint nft on nft contract
-        const promise = NearPromise.new(this.nft_contract_id).functionCall(
-            "nft_mint",
-            bytes(
-                JSON.stringify({
-                    token_id: eventId,
-                    metadata: {
-                        title: "NearPass #1",
-                        description: "Ticket to NearPass event",
-                        issuedAt: near.blockTimestamp().toString(),
-                    },
-                    receiver_id: accountId,
-                })
-            ),
-            ONE_NEAR,
-            BigInt(14_000_000_000_000)
-        );
-        // .then(
-        //     NearPromise.new(near.currentAccountId()).functionCall(
-        //         "buyTicketCallback",
-        //         bytes(
-        //             JSON.stringify({
-        //                 accountId: accountId,
-        //                 eventId: eventId,
-        //                 tier: tier,
-        //             })
-        //         ),
-        //         NO_DEPOSIT,
-        //         BigInt(40_000_000_000_000)
-        //     )
-        // );
+        const promise = NearPromise.new(this.nft_contract_id)
+            .functionCall(
+                "nft_mint",
+                bytes(
+                    JSON.stringify({
+                        token_id: eventId,
+                        metadata: {
+                            title: "NearPass #1",
+                            description: "Ticket to NearPass event",
+                            issuedAt: near.blockTimestamp().toString(),
+                        },
+                        receiver_id: accountId,
+                    })
+                ),
+                ONE_NEAR,
+                BigInt(14_000_000_000_000)
+            )
+            .then(
+                NearPromise.new(near.currentAccountId()).functionCall(
+                    "buyTicketCallback",
+                    bytes(
+                        JSON.stringify({
+                            accountId: accountId,
+                            eventId: eventId,
+                        })
+                    ),
+                    NO_DEPOSIT,
+                    BigInt(14_000_000_000_000)
+                )
+            );
 
         return promise.asReturn();
     }
@@ -167,31 +164,31 @@ export class Events {
         let result = undefined;
 
         try {
-            result = promiseResult(0) as string;
+            result = near.promiseResult(0) as string;
             succeeded = true;
         } catch (e) {
             // rollback
             near.log(`Catch ${e}`); // Catch {}
         } finally {
             if (succeeded) {
-                near.log(`TicketId: ${result}`);
+                let ticketId = near.promiseResult(0) as string;
+                let ticket = new Ticket({
+                    ticketId,
+                    accountId: accountId,
+                    eventId: eventId,
+                });
+
+                let event = this.eventById.get(eventId) as Event;
+
+                event.tickets.set(ticket);
+
+                this.eventById.set(eventId, event);
+                near.log(`${accountId} minted ${eventId} ticket: Tier ${tier}`);
+                return ticketId;
             } else {
                 near.log("Promise failed");
             }
         }
-
-        // let eventMetadata = this.eventMetadataById.get(
-        //     eventId
-        // ) as EventMetadata;
-        // let ticketId = near.promiseResult(0) as string;
-        // let ticket = new Ticket({
-        //     ticketId: ticketId,
-        //     accountId: accountId,
-        //     eventId: eventId,
-        //     tier: eventMetadata.tiers[tier],
-        // });
-        // this.ticketById.set(ticketId, ticket);
-        // return ticketId;
     }
 
     // cancel event before it starts and refund to all ticket buyers, only organizer should be able to cancel.
@@ -199,6 +196,7 @@ export class Events {
     cancelEvent({ eventId }) {
         let event = this.eventById.get(eventId) as Event;
         // if the event has already started, it cannot be cancelled
+        assert(event === null, "No such event exists");
         assert(
             near.blockTimestamp() < BigInt(event.timestamp.valueOf()),
             "Event has already started"
@@ -208,12 +206,18 @@ export class Events {
         // mark amountCollected as zero.
         event.amountCollected = 0;
 
+        // all tickets are now marked as redeemable, which lets users to claim their funds.
+        for (let i = 0; i < event.tickets.length; i++) {
+            (event.tickets[i] as Ticket).redeemable = true;
+        }
+
         this.eventById.set(eventId, event);
-        // all ticket holders need to be refunded.
+
+        near.log(`${event.title} is now cancelled!`);
     }
 
     // let organizer withdraw when event ends.
-    // @call
+    @call({})
     withdraw({ eventId }) {
         let event = this.eventById.get(eventId) as Event;
         let accountId = near.predecessorAccountId();
@@ -239,17 +243,28 @@ export class Events {
     }
 
     // let attendee claim funds for the ticket when the event is cancelled.
-    claimRefund({ ticketIds }: { ticketIds: string[] }) {
-        for (let i = 0; i < ticketIds.length; i++) {
-            let ticketId = ticketIds[i];
-            let ticket = this.ticketById.get(ticketId) as Ticket;
-            assert(!ticket.used, "Ticket is used cannot refund");
-
-            const promise = near.promiseBatchCreate(ticket.accountId);
-            near.promiseBatchActionTransfer(promise, ticket.tier.price);
-
-            ticket.redeemable = false;
-            this.ticketById.set(ticketId, ticket);
+    @call({})
+    claimRefund({
+        eventId,
+        ticketIds,
+    }: {
+        eventId: string;
+        ticketIds: string[];
+    }) {
+        let event = this.eventById.get(eventId) as Event;
+        assert(event.active, "Event is still active");
+        for (let j = 0; j < ticketIds.length; j++) {
+            for (let i = 0; i < event.tickets.length; i++) {
+                let ticket = event.tickets[i] as Ticket;
+                if (ticket.ticketId === ticketIds[j]) {
+                    assert(!ticket.used, "Ticket is used cannot refund");
+                    assert(ticket.redeemable, "Ticket already redeemed");
+                    const promise = near.promiseBatchCreate(ticket.accountId);
+                    near.promiseBatchActionTransfer(promise, event.price);
+                    ticket.redeemable = false;
+                }
+            }
         }
+        this.eventById.set(eventId, event);
     }
 }
