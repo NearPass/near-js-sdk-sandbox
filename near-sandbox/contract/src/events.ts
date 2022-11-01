@@ -13,7 +13,7 @@ import {
 } from "near-sdk-js";
 import { AccountId, ONE_NEAR } from "near-sdk-js/lib/types";
 import { internalCreateEvent } from "./internal";
-import { Event, EventMetadata, Host, Ticket } from "./metadata";
+import { Event, Host, Ticket } from "./metadata";
 
 class EventResult {
     title: string;
@@ -41,7 +41,6 @@ export class Events {
     owner_id: string = "";
     numberOfEvents: number = 0;
     eventsPerOwner = new LookupMap("eventsPerOwner");
-    eventMetadataById = new UnorderedMap("eventsMetadata");
     eventById = new LookupMap("eventById");
 
     @initialize({})
@@ -79,13 +78,10 @@ export class Events {
 
     @view({})
     getEvent({ eventId }) {
-        let eventMetadata = this.eventMetadataById.get(
-            eventId
-        ) as EventMetadata;
         let event = this.eventById.get(eventId) as Event;
 
         return new EventResult({
-            title: eventMetadata.title,
+            title: event.title,
             timestamp: event.timestamp,
             eventId,
             host: event.host,
@@ -96,9 +92,6 @@ export class Events {
     @call({ payableFunction: true })
     buyTicket({ eventId }) {
         let accountId = near.predecessorAccountId();
-        let eventMetadata = this.eventMetadataById.get(
-            eventId
-        ) as EventMetadata;
         let event = this.eventById.get(eventId) as Event;
 
         let price = event.price;
@@ -120,7 +113,6 @@ export class Events {
         event.amountCollected += price;
         // eventMetadata.tiers[tier].ticketsRemaining -= 1;
 
-        this.eventMetadataById.set(eventId, eventMetadata);
         this.eventById.set(eventId, event);
 
         // mint nft on nft contract

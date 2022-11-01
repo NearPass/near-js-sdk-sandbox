@@ -1,5 +1,5 @@
 import { near, assert } from "near-sdk-js";
-import { Event, EventMetadata } from "./metadata";
+import { Event } from "./metadata";
 
 export function internalCreateEvent({
     contract,
@@ -21,20 +21,15 @@ export function internalCreateEvent({
         hostAccountId: accountId,
         hostName,
         price,
-    });
-
-    let eventMetadata = new EventMetadata({
         eventMetadata: eventMetadataUrl,
-        title,
     });
 
     contract.eventsPerOwner.set(accountId, eventId);
-    contract.eventMetadataById.set(eventId, eventMetadata);
     contract.eventById.set(eventId, event);
 
     contract.numberOfEvents += 1;
     near.log(`Event Created: ${accountId} created ${title} event`);
-    near.log(`EventId: ${eventId}`);
+    near.log(``);
     // let requiredStorageInBytes = near.storageUsage() - initialStorageUsage.valueOf();
 
     // refundDeposit(requiredStorageInBytes);

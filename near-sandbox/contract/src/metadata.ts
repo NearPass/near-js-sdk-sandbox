@@ -37,6 +37,7 @@ export class Event {
     host: Host;
     price: number;
     tickets: UnorderedSet;
+    eventMetadata: string;
 
     constructor({
         title,
@@ -46,6 +47,7 @@ export class Event {
         hostName,
         hostAccountId,
         price,
+        eventMetadata,
     }) {
         this.title = title;
         this.active = active;
@@ -54,34 +56,6 @@ export class Event {
         this.amountCollected = amountCollected;
         this.tickets = new UnorderedSet(title);
         this.price = price;
-    }
-}
-
-export class EventMetadata {
-    title: string;
-    /**
-     * at the below URL location following should be stored
-     * {
-     *      longDescription
-     *      shortDescription
-     *      extraQuestions (to be asked to user)
-     *      FAQ (questions answered by the organizer)
-     *      Partner Info
-     *      Telegram Group Handle/Invite Link for the event
-     *
-     *      StartDate
-     *      StartTime
-     *      EndDate
-     *      EndTime
-     *
-     *
-     *      Venue
-     * }
-     */
-    eventMetadata: string;
-
-    constructor({ title, eventMetadata }) {
-        this.title = title;
         this.eventMetadata = eventMetadata;
     }
 }
