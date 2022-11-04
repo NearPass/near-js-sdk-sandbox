@@ -30,6 +30,7 @@ export class Ticket {
 }
 
 export class Event {
+    id: string;
     title: string;
     active: boolean;
     timestamp: number;
@@ -41,6 +42,7 @@ export class Event {
 
     constructor({
         title,
+        id,
         active,
         timestamp,
         amountCollected,
@@ -52,10 +54,14 @@ export class Event {
         this.title = title;
         this.active = active;
         this.timestamp = timestamp;
-        this.host = new Host({ name: hostName, accountId: hostAccountId });
+        this.host = new Host({
+            name: hostName,
+            accountId: hostAccountId,
+        });
         this.amountCollected = amountCollected;
         this.tickets = new UnorderedSet(title);
         this.price = price;
         this.eventMetadata = eventMetadata;
+        this.id = id;
     }
 }
