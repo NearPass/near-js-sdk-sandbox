@@ -22,14 +22,14 @@ export function internalCreateEvent({
         hostName,
         price,
         eventMetadata: eventMetadataUrl,
+        id: eventId,
     });
 
     contract.eventsPerOwner.set(accountId, eventId);
     contract.eventById.set(eventId, event);
 
     contract.numberOfEvents += 1;
-    near.log(`Event Created: ${accountId} created ${title} event`);
-    near.log(``);
+    near.log(event);
     // let requiredStorageInBytes = near.storageUsage() - initialStorageUsage.valueOf();
 
     // refundDeposit(requiredStorageInBytes);
