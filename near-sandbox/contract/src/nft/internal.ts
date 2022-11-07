@@ -63,7 +63,6 @@ export function refundDeposit(storageUsed: bigint) {
 
     //get the refund amount from the attached deposit - required cost
     let refund = attachedDeposit - requiredCost;
-    near.log(`Refunding ${refund} yoctoNEAR`);
 
     //if the refund is greater than 1 yocto NEAR, we refund the predecessor that amount
     if (refund > 1) {
