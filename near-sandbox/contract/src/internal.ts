@@ -5,7 +5,7 @@ export function internalCreateEvent({
     contract,
     eventId,
     title,
-    eventMetadataUrl,
+    eventMetadata,
     eventStart,
     hostName,
     price,
@@ -21,7 +21,7 @@ export function internalCreateEvent({
         hostAccountId: accountId,
         hostName,
         price,
-        eventMetadata: eventMetadataUrl,
+        eventMetadata,
         id: eventId,
     });
 
