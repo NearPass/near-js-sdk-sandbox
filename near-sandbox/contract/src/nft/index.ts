@@ -6,6 +6,7 @@ import {
     UnorderedMap,
     initialize,
     near,
+    assert,
 } from "near-sdk-js";
 import {
     NFTContractMetadata,
@@ -32,6 +33,7 @@ import {
     internalNftRevoke,
     internalNftRevokeAll,
 } from "./approval";
+import { AccountId } from "near-sdk-js/lib/types";
 
 /// This spec can be treated like a version of the standard.
 export const NFT_METADATA_SPEC = "nft-1.0.0";
@@ -41,7 +43,7 @@ export const NFT_STANDARD_NAME = "nep171";
 
 @NearBindgen({})
 export class Contract {
-    owner_id: string;
+    owner_id: AccountId = "";
     tokensPerOwner: LookupMap = new LookupMap("tokensPerOwner");
     tokensById: LookupMap = new LookupMap("tokensById");
     tokenMetadataById: UnorderedMap = new UnorderedMap("tokenMetadataById");
@@ -56,7 +58,7 @@ export class Contract {
             symbol: "GOTEAM",
         },
     }: {
-        owner_id: string;
+        owner_id: AccountId;
         metadata: { spec: string; name: string; symbol: string };
     }) {
         this.owner_id = owner_id;
@@ -68,14 +70,17 @@ export class Contract {
     */
     @call({ payableFunction: true })
     nft_mint({ token_id, metadata, receiver_id }) {
+        assert(
+            near.predecessorAccountId() === this.owner_id,
+            "Only Events Contract can mint tickets"
+        );
         let tokenId = internalMint({
             contract: this,
             tokenId: token_id,
             metadata: metadata,
             receiver_id: receiver_id,
         });
-        near.log(`TokenId: ${token_id}`);
-        return token_id;
+        return tokenId;
     }
 
     /*
