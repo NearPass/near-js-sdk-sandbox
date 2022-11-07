@@ -3,6 +3,11 @@ import { AccountId } from "near-sdk-js/lib/types";
 
 export type EventId = string;
 
+export enum EventType {
+    "virtual",
+    "irl",
+}
+
 export class Host {
     name: string;
     accountId: AccountId;
@@ -29,6 +34,52 @@ export class Ticket {
     }
 }
 
+export class EventMetadata {
+    eventType: EventType;
+    venue: string;
+    hostemail: string;
+    telegram: string;
+    discord: string;
+    faqquestion1: string;
+    faqquestion2: string;
+    answer1: string;
+    answer2: string;
+    question1: string;
+    question2: string;
+    thumbnail: string;
+    description: string;
+
+    constructor({
+        eventType,
+        venue,
+        hostemail,
+        telegram,
+        discord,
+        faqquestion1,
+        faqquestion2,
+        answer1,
+        answer2,
+        question1,
+        question2,
+        thumbnail,
+        description,
+    }) {
+        this.eventType = eventType;
+        this.venue = venue;
+        this.hostemail = hostemail;
+        this.telegram = telegram;
+        this.discord = discord;
+        this.faqquestion1 = faqquestion1;
+        this.faqquestion2 = faqquestion2;
+        this.answer1 = answer1;
+        this.answer2 = answer2;
+        this.question1 = question1;
+        this.question2 = question2;
+        this.thumbnail = thumbnail;
+        this.description = description;
+    }
+}
+
 export class Event {
     id: string;
     title: string;
@@ -37,8 +88,7 @@ export class Event {
     amountCollected: number;
     host: Host;
     price: number;
-    tickets: UnorderedSet;
-    eventMetadata: string;
+    eventMetadata: EventMetadata;
 
     constructor({
         title,
@@ -59,9 +109,8 @@ export class Event {
             accountId: hostAccountId,
         });
         this.amountCollected = amountCollected;
-        this.tickets = new UnorderedSet(title);
         this.price = price;
-        this.eventMetadata = eventMetadata;
+        this.eventMetadata = new EventMetadata(eventMetadata);
         this.id = id;
     }
 }
