@@ -51,7 +51,6 @@ export function internalSupplyForOwner({
     account_id: string;
 }): number {
     //get the set of tokens for the passed in owner
-    near.log(`${contract} - ${account_id}`);
     let tokens = restoreOwners(contract.tokensPerOwner.get(account_id));
     //if there isn't a set of tokens for the passed in account ID, we'll return 0
     if (tokens == null) {
