@@ -42,6 +42,7 @@ export class Events {
     numberOfEvents: number = 0;
     eventsPerOwner = new LookupMap("eventsPerOwner");
     eventById = new LookupMap("eventById");
+    ticketById = new UnorderedSet("ticketById");
 
     @initialize({})
     init({ nft_contract_id }: { nft_contract_id: AccountId }) {
@@ -58,7 +59,7 @@ export class Events {
     createEvent({
         eventId,
         title,
-        eventMetadataUrl,
+        eventMetadata,
         eventStart,
         hostName,
         price,
@@ -68,7 +69,7 @@ export class Events {
             contract: this,
             eventId,
             title,
-            eventMetadataUrl,
+            eventMetadata,
             eventStart,
             hostName,
             price,
@@ -121,7 +122,7 @@ export class Events {
                 "nft_mint",
                 bytes(
                     JSON.stringify({
-                        token_id: eventId,
+                        token_id: `${eventId}#${this.ticketById.length}`,
                         metadata: {
                             title: "NearPass #1",
                             description: "Ticket to NearPass event",
@@ -170,12 +171,8 @@ export class Events {
                     eventId: eventId,
                 });
 
-                let event = this.eventById.get(eventId) as Event;
-
-                event.tickets.set(ticket);
-
-                this.eventById.set(eventId, event);
-                near.log(`${accountId} minted ${eventId} ticket: Tier ${tier}`);
+                this.ticketById.set(ticket);
+                near.log(ticket);
                 return ticketId;
             } else {
                 near.log("Promise failed");
@@ -188,24 +185,30 @@ export class Events {
     cancelEvent({ eventId }) {
         let event = this.eventById.get(eventId) as Event;
         // if the event has already started, it cannot be cancelled
-        assert(event === null, "No such event exists");
+        assert(event !== null, "No such event exists");
         assert(
             near.blockTimestamp() < BigInt(event.timestamp.valueOf()),
             "Event has already started"
         );
+        assert(event.active, "Event already cancelled");
+
         // mark event as inactive.
         event.active = false;
         // mark amountCollected as zero.
         event.amountCollected = 0;
 
         // all tickets are now marked as redeemable, which lets users to claim their funds.
-        for (let i = 0; i < event.tickets.length; i++) {
-            (event.tickets[i] as Ticket).redeemable = true;
+        for (let i = 0; i < this.ticketById.length; i++) {
+            if (
+                (this.ticketById.elements.get(i) as Ticket).eventId === eventId
+            ) {
+                let ticket = this.ticketById.elements.get(i) as Ticket;
+                ticket.redeemable = true;
+                this.ticketById.elements.replace(i, ticket);
+            }
         }
-
         this.eventById.set(eventId, event);
-
-        near.log(`${event.title} is now cancelled!`);
+        near.log(event);
     }
 
     // let organizer withdraw when event ends.
@@ -236,27 +239,37 @@ export class Events {
 
     // let attendee claim funds for the ticket when the event is cancelled.
     @call({})
-    claimRefund({
-        eventId,
-        ticketIds,
-    }: {
-        eventId: string;
-        ticketIds: string[];
-    }) {
+    claimRefund({ eventId, ticketId }: { eventId: string; ticketId: string }) {
         let event = this.eventById.get(eventId) as Event;
-        assert(event.active, "Event is still active");
-        for (let j = 0; j < ticketIds.length; j++) {
-            for (let i = 0; i < event.tickets.length; i++) {
-                let ticket = event.tickets[i] as Ticket;
-                if (ticket.ticketId === ticketIds[j]) {
-                    assert(!ticket.used, "Ticket is used cannot refund");
-                    assert(ticket.redeemable, "Ticket already redeemed");
-                    const promise = near.promiseBatchCreate(ticket.accountId);
-                    near.promiseBatchActionTransfer(promise, event.price);
-                    ticket.redeemable = false;
-                }
+        assert(!event.active, "Event is still active");
+        for (let i = 0; i < this.ticketById.length; i++) {
+            let ticket = this.ticketById.elements.get(i) as Ticket;
+            if (ticket.ticketId === ticketId) {
+                assert(!ticket.used, "Ticket is used cannot refund");
+                assert(ticket.redeemable, "Ticket already redeemed");
+                const promise = near.promiseBatchCreate(ticket.accountId);
+                near.promiseBatchActionTransfer(promise, event.price);
+                ticket.redeemable = false;
+                this.ticketById.set(ticket);
+                near.log(ticket);
             }
         }
-        this.eventById.set(eventId, event);
+    }
+
+    @call({})
+    redeem({ ticketId }: { ticketId: string }) {
+        for (let i = 0; i < this.ticketById.length; i++) {
+            if (
+                (this.ticketById.elements.get(i) as Ticket).ticketId ===
+                ticketId
+            ) {
+                let ticket = this.ticketById.elements.get(i) as Ticket;
+                assert(!ticket.used, "Ticket is already used");
+                assert(!ticket.redeemable, "Ticket is redeemed");
+                ticket.used = true;
+                this.ticketById.elements.replace(i, ticket);
+                near.log(ticket);
+            }
+        }
     }
 }
