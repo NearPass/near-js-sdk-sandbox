@@ -1,22 +1,32 @@
-import { Worker, NEAR, NearAccount } from "near-workspaces";
+import {
+    Worker,
+    NEAR,
+    NearAccount,
+    ONE_NEAR,
+    parseNEAR,
+} from "near-workspaces";
 import anyTest, { TestFn } from "ava";
 
 const EVENT_METADATA = {
     eventId: "nearpass",
     title: "NearPass",
-    eventMetadataUrl: "someurl",
-    eventStart: "1666977063000000000",
     hostName: "Nikhil",
-    tiersInformation: [
-        { price: 1, thumbnail: "thumbnail_url", ticketsRemaining: 10 },
-    ],
+    price: ONE_NEAR,
+    eventMetadata: {
+        eventType: "virtual",
+        hostemail: "nikhil@gmail.com",
+        telegram: "t.me/joincelo",
+        faqquestion1: "What is the age limit?",
+        answer1: "18+",
+        description: "Best event ever!",
+    },
+    eventStart: "1668814926000000000",
 };
 
 const EVENT_RESULT = {
     title: "NearPass",
-    timestamp: "1666977063000000000",
+    timestamp: "1668814926000000000",
     eventId: "nearpass",
-    tiers: [{ price: 1, thumbnail: "thumbnail_url", ticketsRemaining: 10 }],
     host: { name: "Nikhil", accountId: "ali.test.near" },
     active: true,
 };
@@ -75,28 +85,30 @@ test("Not able to create duplicate event", async (t) => {
 
 test("directly mint NFT", async (t) => {
     const { nft, ali, bob } = t.context.accounts;
-    await ali.call(
-        nft,
-        "nft_mint",
-        {
-            token_id: "nearpass",
-            metadata: {
-                title: "NearPass #1",
-                description: "Ticket to NearPass event",
-                issuedAt: "12387123891723812371",
+    await t.throwsAsync(
+        ali.call(
+            nft,
+            "nft_mint",
+            {
+                token_id: "nearpass",
+                metadata: {
+                    title: "NearPass #1",
+                    description: "Ticket to NearPass event",
+                    issuedAt: "12387123891723812371",
+                },
+                receiver_id: ali.accountId,
             },
-            receiver_id: ali.accountId,
-        },
-        {
-            attachedDeposit: NEAR.parse("1"),
-        }
+            {
+                attachedDeposit: NEAR.parse("1"),
+            }
+        )
     );
 
-    let result = await nft.view("nft_supply_for_owner", {
-        account_id: ali.accountId,
-    });
-
-    t.is(result, 1);
+    // await t.throwsAsync(
+    //     nft.view("nft_supply_for_owner", {
+    //         account_id: ali.accountId,
+    //     })
+    // );
 });
 
 test("User should be able to buy tickets", async (t) => {
@@ -117,6 +129,48 @@ test("User should be able to buy tickets", async (t) => {
     let result = await nft.view("nft_supply_for_owner", {
         account_id: bob.accountId,
     });
-    console.log(tokenId);
     t.is(result, 1);
+});
+
+test("Should be able to cancel event", async (t) => {
+    const { events, ali: eventOrganiser } = t.context.accounts;
+    let eventId = await eventOrganiser.call(
+        events,
+        "createEvent",
+        EVENT_METADATA,
+        {
+            attachedDeposit: NEAR.parse("1"),
+        }
+    );
+
+    await eventOrganiser.call(events, "cancelEvent", { eventId }, {});
+});
+
+test.only("User should be able to claim refund if the event is cancelled", async (t) => {
+    const {
+        events,
+        ali: eventOrganiser,
+        bob: ticketBuyer,
+    } = t.context.accounts;
+    let eventId = await eventOrganiser.call(
+        events,
+        "createEvent",
+        EVENT_METADATA,
+        {
+            attachedDeposit: NEAR.parse("1"),
+        }
+    );
+
+    let ticketId = await ticketBuyer.call(
+        events,
+        "buyTicket",
+        { eventId },
+        {
+            attachedDeposit: NEAR.parse("1"),
+            gas: BigInt(300_000_000_000_000).toString(),
+        }
+    );
+
+    await eventOrganiser.call(events, "cancelEvent", { eventId }, {});
+    await ticketBuyer.call(events, "claimRefund", { eventId, ticketId }, {});
 });
