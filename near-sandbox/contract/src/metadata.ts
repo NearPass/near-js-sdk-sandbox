@@ -24,13 +24,32 @@ export class Ticket {
     accountId: AccountId; // owner of ticket
     used: boolean; // true means the ticket owner attended the event
     redeemable: boolean; // whether the owner can claim the price in case the event gets cancelled.
+    name: string;
+    email: string;
+    phone: string;
+    answer1: string;
+    answer2: string;
 
-    constructor({ ticketId, eventId, accountId }) {
+    constructor({
+        ticketId,
+        eventId,
+        accountId,
+        name,
+        email,
+        phone,
+        answer1,
+        answer2,
+    }) {
         this.ticketId = ticketId;
         this.eventId = eventId;
         this.accountId = accountId;
         this.used = false;
         this.redeemable = false;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+        this.answer1 = answer1;
+        this.answer2 = answer2;
     }
 }
 
