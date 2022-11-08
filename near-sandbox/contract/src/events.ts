@@ -91,7 +91,7 @@ export class Events {
     }
 
     @call({ payableFunction: true })
-    buyTicket({ eventId }) {
+    buyTicket({ eventId, name, email, phone, answer1, answer2 }) {
         let accountId = near.predecessorAccountId();
         let event = this.eventById.get(eventId) as Event;
 
@@ -139,8 +139,13 @@ export class Events {
                     "buyTicketCallback",
                     bytes(
                         JSON.stringify({
-                            accountId: accountId,
-                            eventId: eventId,
+                            accountId,
+                            eventId,
+                            name,
+                            phone,
+                            email,
+                            answer1,
+                            answer2,
                         })
                     ),
                     NO_DEPOSIT,
@@ -152,7 +157,15 @@ export class Events {
     }
 
     @call({ privateFunction: true })
-    buyTicketCallback({ accountId, eventId, tier }) {
+    buyTicketCallback({
+        accountId,
+        eventId,
+        name,
+        email,
+        phone,
+        answer1,
+        answer2,
+    }) {
         let succeeded = false;
         let result = undefined;
 
@@ -167,8 +180,13 @@ export class Events {
                 let ticketId = near.promiseResult(0) as string;
                 let ticket = new Ticket({
                     ticketId,
-                    accountId: accountId,
-                    eventId: eventId,
+                    accountId,
+                    eventId,
+                    name,
+                    email,
+                    phone,
+                    answer1,
+                    answer2,
                 });
 
                 this.ticketById.set(ticket);
