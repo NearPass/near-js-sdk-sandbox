@@ -49,20 +49,27 @@ export class Contract {
     tokenMetadataById: UnorderedMap = new UnorderedMap("tokenMetadataById");
     metadata: NFTContractMetadata;
 
-    @initialize({})
-    init({
-        owner_id,
-        metadata = {
-            spec: "nft-1.0.0",
-            name: "NFT Tutorial Contract",
-            symbol: "GOTEAM",
-        },
-    }: {
-        owner_id: AccountId;
-        metadata: { spec: string; name: string; symbol: string };
-    }) {
+    // @initialize({})
+    // init({
+    //     owner_id,
+    //     metadata = {
+    //         spec: "nft-1.0.0",
+    //         name: "NFT Tutorial Contract",
+    //         symbol: "GOTEAM",
+    //     },
+    // }: {
+    //     owner_id: AccountId;
+    //     metadata: { spec: string; name: string; symbol: string };
+    // }) {
+    //     this.owner_id = owner_id;
+    //     this.metadata = metadata;
+    // }
+
+    @call({})
+    setOwnerId({ owner_id }) {
+        assert(this.owner_id == "", "Owner ID already set");
         this.owner_id = owner_id;
-        this.metadata = metadata;
+        near.log(`Owner ID: ${owner_id}`);
     }
 
     /*
@@ -70,6 +77,7 @@ export class Contract {
     */
     @call({ payableFunction: true })
     nft_mint({ token_id, metadata, receiver_id }) {
+        near.log(`caller accountId: ${near.predecessorAccountId()}`);
         assert(
             near.predecessorAccountId() === this.owner_id,
             "Only Events Contract can mint tickets"
