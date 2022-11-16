@@ -283,8 +283,9 @@ export class Events {
             ) {
                 let ticket = this.ticketById.elements.get(i) as Ticket;
                 assert(!ticket.used, "Ticket is already used");
-                assert(!ticket.redeemable, "Ticket is redeemed");
+                assert(ticket.redeemable, "Ticket is redeemed");
                 ticket.used = true;
+                ticket.redeemable = false;
                 this.ticketById.elements.replace(i, ticket);
                 near.log(ticket);
             }
